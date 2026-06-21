@@ -1,3 +1,5 @@
+package model;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -8,7 +10,7 @@ public class DBConnection {
 
     private static final String URL = "jdbc:mysql://localhost:3306/university_1?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8";
     private static final String USER = "root";
-    private static final String PASSWORD = ""; // В XAMPP пароль пустой
+    private static final String PASSWORD = "";
 
     private DBConnection() {
         try {
@@ -34,7 +36,6 @@ public class DBConnection {
     // соединение для SQL-запросов
     public Connection getConnection() {
         try {
-            // Если соединение вдруг закрылось, пересоздаем его
             if (connection == null || connection.isClosed()) {
                 connection = DriverManager.getConnection(URL, USER, PASSWORD);
             }

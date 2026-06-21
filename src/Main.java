@@ -1,16 +1,26 @@
+import model.DBConnection;
+import model.User;
+import model.Users;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Тестирование подключения к базе данных");
+        Users usersModel = new Users();
 
-        DBConnection dbInstance = DBConnection.getInstance();
+        String simplePass = "123";
+        String complexPass = "Admin123!";
 
-        if (dbInstance.getConnection() != null) {
-            System.out.println("\nJava успешно связалась с MySQL.");
+        System.out.println("Проверка пароля '" + simplePass + "': " + usersModel.validatePasswordComplexity(simplePass)); // Должно быть false
+        System.out.println("Проверка пароля '" + complexPass + "': " + usersModel.validatePasswordComplexity(complexPass)); // Должно быть true
 
-            dbInstance.closeConnection();
+        System.out.println("\nПопытка авторизации");
+
+        User loggedUser = usersModel.loginUser("Admin", "Admin123!");
+
+        if (loggedUser != null) {
+            System.out.println("Добро пожаловать, " + loggedUser.getLogin() + " (Email: " + loggedUser.getEmail() + ")");
+        } else {
+            System.err.println("Неверный логин или пароль, либо пользователя нет в БД.");
         }
-        else {
-            System.err.println("\nНе удалось получить активное соединение.");
-        }
+        DBConnection.getInstance().closeConnection();
     }
 }
