@@ -1,26 +1,27 @@
+import controller.AuthController;
+import javafx.application.Application;
+import javafx.stage.Stage;
 import model.DBConnection;
-import model.User;
 import model.Users;
+import view.AuthView;
 
-public class Main {
-    public static void main(String[] args) {
-        Users usersModel = new Users();
+public class Main extends Application {
 
-        String simplePass = "123";
-        String complexPass = "Admin123!";
+    @Override
+    public void start(Stage primaryStage) {
+        Users model = new Users();                 // Model
+        AuthView view = new AuthView(primaryStage); // View
+        new AuthController(model, view);           // Controller
 
-        System.out.println("Проверка пароля '" + simplePass + "': " + usersModel.validatePasswordComplexity(simplePass)); // Должно быть false
-        System.out.println("Проверка пароля '" + complexPass + "': " + usersModel.validatePasswordComplexity(complexPass)); // Должно быть true
+        view.show();
+    }
 
-        System.out.println("\nПопытка авторизации");
-
-        User loggedUser = usersModel.loginUser("Admin", "Admin123!");
-
-        if (loggedUser != null) {
-            System.out.println("Добро пожаловать, " + loggedUser.getLogin() + " (Email: " + loggedUser.getEmail() + ")");
-        } else {
-            System.err.println("Неверный логин или пароль, либо пользователя нет в БД.");
-        }
+    @Override
+    public void stop() {
         DBConnection.getInstance().closeConnection();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
     }
 }

@@ -5,6 +5,9 @@ public class User {
     private String login;
     private String email;
     private String passwordHash;
+    private String role;
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 
     public User(int userId, String login, String email, String passwordHash) {
         this.userId = userId;

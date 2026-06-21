@@ -1,5 +1,7 @@
 package model;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -9,67 +11,99 @@ import java.util.Observable;
 
 public class Users extends Observable {
     private final Connection connection;
-    private final List<User> userList;
 
     public Users() {
         this.connection = DBConnection.getInstance().getConnection();
-        this.userList = new ArrayList<>();
     }
-    public void selectAll() {
-        String query = "SELECT user_id, login, e_mail, password_hash FROM users";
 
-        try (PreparedStatement statement = connection.prepareStatement(query);
-             ResultSet result = statement.executeQuery()) {
-
-            userList.clear();
-
-            while (result.next()) {
-                int id = result.getInt("user_id");
-                String login = result.getString("login");
-                String email = result.getString("e_mail");
-                String hash = result.getString("password_hash");
-
-                userList.add(new User(id, login, email, hash));
+    public String hashPassword(String password) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
             }
-
-            System.out.println("Данные пользователей успешно загружены из БД. Количество: " + userList.size());
-
+            return hexString.toString();
         } catch (Exception e) {
-            System.err.println("Ошибка при выполнении selectAll в Users: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException("Ошибка хэширования", e);
         }
-        this.setChanged();
-        this.notifyObservers();
-    }
-
-    public List<User> getAll() {
-        return userList;
     }
 
     public User loginUser(String login, String password) {
-        String query = "SELECT user_id, login, e_mail, password_hash FROM users WHERE login = ?";
+        String query = "SELECT u.user_id, u.login, u.e_mail, u.password_hash, r.role_name " +
+                "FROM users u " +
+                "LEFT JOIN users_roles ur ON u.user_id = ur.user_id " +
+                "LEFT JOIN roles r ON ur.role_id = r.role_id " +
+                "WHERE u.login = ?";
 
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, login);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    String hashFromDb = rs.getString("password_hash");
-                    if (password.equals(hashFromDb)) {
-                        return new User(
+                    String inputHash = hashPassword(password);
+                    String dbHash = rs.getString("password_hash");
+
+                    if (inputHash.equalsIgnoreCase(dbHash) || password.equals(dbHash)) {
+                        User user = new User(
                                 rs.getInt("user_id"),
                                 rs.getString("login"),
                                 rs.getString("e_mail"),
-                                hashFromDb
+                                dbHash
                         );
+                        user.setRole(rs.getString("role_name") != null ? rs.getString("role_name") : "Student");
+                        return user;
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("Ошибка при авторизации: " + e.getMessage());
             e.printStackTrace();
         }
         return null;
+    }
+
+    public boolean registerUser(String login, String email, String password) {
+        String insertUser = "INSERT INTO users (login, e_mail, password_hash) VALUES (?, ?, ?)";
+        String insertRole = "INSERT INTO users_roles (user_id, role_id) VALUES (?, ?)";
+
+        try {
+            connection.setAutoCommit(false);
+
+            int userId = -1;
+            try (PreparedStatement pstmt = connection.prepareStatement(insertUser, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                pstmt.setString(1, login);
+                pstmt.setString(2, email);
+                pstmt.setString(3, hashPassword(password));
+
+                int affectedRows = pstmt.executeUpdate();
+                if (affectedRows == 0) throw new Exception("Не удалось создать пользователя.");
+
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        userId = generatedKeys.getInt(1);
+                    }
+                }
+            }
+
+            try (PreparedStatement pstmtRole = connection.prepareStatement(insertRole)) {
+                pstmtRole.setInt(1, userId);
+                pstmtRole.setInt(2, 3);
+                pstmtRole.executeUpdate();
+            }
+
+            connection.commit();
+            connection.setAutoCommit(true);
+            System.out.println("[Model] Пользователь " + login + " успешно зарегистрирован!");
+            return true;
+
+        } catch (Exception e) {
+            try { connection.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+            System.err.println("Ошибка регистрации: " + e.getMessage());
+            return false;
+        }
     }
 
     public boolean validatePasswordComplexity(String password) {

@@ -8,7 +8,7 @@ public class DBConnection {
     private static DBConnection instance;
     private Connection connection;
 
-    private static final String URL = "jdbc:mysql://localhost:3306/university_1?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8";
+    private static final String URL = "jdbc:mysql://localhost:3306/university_2?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8";
     private static final String USER = "root";
     private static final String PASSWORD = "";
 
