@@ -9,9 +9,9 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        Users model = new Users();                 // Model
-        AuthView view = new AuthView(primaryStage); // View
-        new AuthController(model, view);           // Controller
+        Users model = new Users();
+        AuthView view = new AuthView(primaryStage);
+        new AuthController(model, view);
 
         view.show();
     }

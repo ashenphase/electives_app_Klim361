@@ -57,7 +57,6 @@ public class AuthController {
             return;
         }
 
-        // Проверяем пароль по ТЗ регуляркой перед отправкой в БД
         if (!model.validatePasswordComplexity(password)) {
             view.setStatus("Пароль должен включать хотя бы 1 заглавную букву, 1 цифру, спецсимвол и иметь длинну от 8 знаков.");
             return;

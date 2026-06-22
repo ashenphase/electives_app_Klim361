@@ -16,6 +16,7 @@ public class AuthView {
     private Button registerButton;
     private Label statusLabel;
 
+
     public AuthView(Stage stage) {
         this.stage = stage;
         initUI();
