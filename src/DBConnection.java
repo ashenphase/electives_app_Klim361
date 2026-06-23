@@ -1,5 +1,3 @@
-package model;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -8,7 +6,7 @@ public class DBConnection {
     private static DBConnection instance;
     private Connection connection;
 
-    private static final String URL = "jdbc:mysql://localhost:3306/university_2?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8";
+    private static final String URL = "jdbc:mysql://localhost:3306/university_2";
     private static final String USER = "root";
     private static final String PASSWORD = "";
 
@@ -33,7 +31,6 @@ public class DBConnection {
         return instance;
     }
 
-    // соединение для SQL-запросов
     public Connection getConnection() {
         try {
             if (connection == null || connection.isClosed()) {
@@ -45,7 +42,7 @@ public class DBConnection {
         return connection;
     }
 
-    // закрытие соединения при выходе из приложения
+    // закрытие соединения
     public void closeConnection() {
         if (connection != null) {
             try {

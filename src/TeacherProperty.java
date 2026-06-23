@@ -1,5 +1,3 @@
-package model;
-
 public class TeacherProperty {
     private final int teacherId;
     private final String fullName;

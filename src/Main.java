@@ -1,9 +1,5 @@
-import controller.AuthController;
 import javafx.application.Application;
 import javafx.stage.Stage;
-import model.DBConnection;
-import model.Users;
-import view.AuthView;
 
 public class Main extends Application {
 

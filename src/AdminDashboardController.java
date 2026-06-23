@@ -1,9 +1,3 @@
-package controller;
-
-import model.Elective;
-import model.Electives;
-import view.AdminDashboardView;
-
 public class AdminDashboardController {
     private final Electives model;
     private final AdminDashboardView view;
@@ -23,17 +17,17 @@ public class AdminDashboardController {
                 view.getActivityInfoArea().setText(activityData);
 
                 view.getTeacherBox().getItems().clear();
-                java.util.List<model.TeacherProperty> availableTeachers = model.getAvailableTeachersForElective(newSelection.getTitle());
+                java.util.List<TeacherProperty> availableTeachers = model.getAvailableTeachersForElective(newSelection.getTitle());
                 view.getTeacherBox().getItems().addAll(availableTeachers);
             }
         });
 
-        // кнопка "Добавить часы"
+        // кнопка добавить часы
         this.view.getAddActivityButton().setOnAction(e -> {
             Elective selectedCourse = this.view.getTable().getSelectionModel().getSelectedItem();
             String selectedType = this.view.getActivityTypeBox().getValue();
             String hoursText = this.view.getHoursField().getText();
-            model.TeacherProperty selectedTeacher = this.view.getTeacherBox().getValue();
+            TeacherProperty selectedTeacher = this.view.getTeacherBox().getValue();
 
             if (selectedCourse == null) {
                 this.view.getActivityInfoArea().setText("Ошибка: Сначала выберите курс в таблице!");
@@ -77,7 +71,6 @@ public class AdminDashboardController {
             view.getTeachersTable().setItems(model.loadTeachersFromDb());
         };
 
-        // кервичная загрузка преподов и факультативов в ComboBox
         refreshTeachers.run();
         view.getAllElectivesBox().getItems().addAll(model.getAllElectiveTitles());
 
@@ -105,7 +98,7 @@ public class AdminDashboardController {
 
         // кнопка удалить преподавателя
         view.getDeleteTeacherBtn().setOnAction(e -> {
-            model.Teacher selected = view.getTeachersTable().getSelectionModel().getSelectedItem();
+            Teacher selected = view.getTeachersTable().getSelectionModel().getSelectedItem();
             if (selected == null) {
                 view.getTeacherStatusLabel().setText("Сначала выберите преподавателя в таблице!");
                 return;
@@ -121,7 +114,7 @@ public class AdminDashboardController {
 
         // кнопка назначить на факультатив
         view.getAssignBtn().setOnAction(e -> {
-            model.Teacher selectedTeacher = view.getTeachersTable().getSelectionModel().getSelectedItem();
+            Teacher selectedTeacher = view.getTeachersTable().getSelectionModel().getSelectedItem();
             String selectedElective = view.getAllElectivesBox().getValue();
 
             if (selectedTeacher == null || selectedElective == null) {
@@ -182,7 +175,7 @@ public class AdminDashboardController {
 
         // кнопка удалить студента
         view.getDeleteStudentBtn().setOnAction(e -> {
-            model.Student selected = view.getStudentsTable().getSelectionModel().getSelectedItem();
+            Student selected = view.getStudentsTable().getSelectionModel().getSelectedItem();
             if (selected == null) {
                 view.getStudentStatusLabel().setText("Выберите студента в таблице!");
                 return;
@@ -198,7 +191,7 @@ public class AdminDashboardController {
 
         // кнопка записать на курс
         view.getEnrollBtn().setOnAction(e -> {
-            model.Student selectedStudent = view.getStudentsTable().getSelectionModel().getSelectedItem();
+            Student selectedStudent = view.getStudentsTable().getSelectionModel().getSelectedItem();
             String selectedCourseRow = view.getSemCoursesBox().getValue();
 
             if (selectedStudent == null || selectedCourseRow == null) {
@@ -217,6 +210,100 @@ public class AdminDashboardController {
             } catch (Exception ex) {
                 view.getStudentStatusLabel().setText("Ошибка обработки данных.");
                 ex.printStackTrace();
+            }
+        });
+
+        // кнопка отписать от курса
+        view.getUnenrollBtn().setOnAction(e -> {
+            Student selectedStudent = view.getStudentsTable().getSelectionModel().getSelectedItem();
+            String selectedCourseRow = view.getSemCoursesBox().getValue();
+
+            if (selectedStudent == null || selectedCourseRow == null) {
+                view.getStudentStatusLabel().setText("Выберите студента и семестровый курс, от которого хотите отписать!");
+                return;
+            }
+
+            try {
+                // Вытаскиваем ID курса из строки ComboBox (например, "2 - Физика")
+                int semesterCourseId = Integer.parseInt(selectedCourseRow.split(" - ")[0]);
+
+                if (model.unenrollStudentFromCourse(selectedStudent.getStudentId(), semesterCourseId)) {
+                    view.getStudentStatusLabel().setText("Студент успешно отписан от данного семестрового курса.");
+                } else {
+                    view.getStudentStatusLabel().setText("Не удалось отписать (возможно, он и не был записан на этот курс).");
+                }
+            } catch (Exception ex) {
+                view.getStudentStatusLabel().setText("Ошибка обработки данных.");
+                ex.printStackTrace();
+            }
+        });
+
+        // ЛОГИКА ВКЛАДКИ РОЛЕЙ
+
+        Runnable refreshUsers = () -> {
+            view.getUsersTable().setItems(model.loadUsersFromDb());
+            view.getFreeTeachersComboBox().getItems().clear();
+            view.getFreeTeachersComboBox().getItems().addAll(model.getFreeTeachers());
+        };
+
+        refreshUsers.run();
+
+        // выбор преподавателя в зависимости от выбранной роли
+        view.getRolesComboBox().valueProperty().addListener((obs, oldVal, newVal) -> {
+            if ("teacher".equals(newVal)) {
+                view.getFreeTeachersComboBox().setVisible(true);
+            } else {
+                view.getFreeTeachersComboBox().setVisible(false);
+                view.getFreeTeachersComboBox().setValue(null);
+            }
+        });
+
+        // клик на строку пользователя в таблице
+        view.getUsersTable().getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
+            if (newSel != null) {
+                view.getRolesComboBox().setValue(newSel.getRole());
+            }
+        });
+
+        // кнопка сохранить изменения роли и связи
+        view.getChangeRoleBtn().setOnAction(e -> {
+            UserProperty selectedUser = view.getUsersTable().getSelectionModel().getSelectedItem();
+            String newRole = view.getRolesComboBox().getValue();
+            TeacherProperty selectedTeacher = view.getFreeTeachersComboBox().getValue();
+
+            if (selectedUser == null || newRole == null) {
+                view.getUserStatusLabel().setText("Выберите пользователя и роль!");
+                return;
+            }
+
+            if ("teacher".equals(newRole) && selectedTeacher == null) {
+                view.getUserStatusLabel().setText("Ошибка: Для роли teacher выберите преподавателя из списка!");
+                return;
+            }
+
+            Integer teacherId = (selectedTeacher != null) ? selectedTeacher.getTeacherId() : null;
+
+            if (model.addRoleToUser(selectedUser.getUserId(), newRole, teacherId)) {
+                view.getUserStatusLabel().setText("Роль успешно добавлена к профилю!");
+                refreshUsers.run();
+            } else {
+                view.getUserStatusLabel().setText("Ошибка добавления роли.");
+            }
+        });
+
+        // кнопка удалить аккаунт
+        view.getDeleteUserBtn().setOnAction(e -> {
+            UserProperty selectedUser = view.getUsersTable().getSelectionModel().getSelectedItem();
+            if (selectedUser == null) {
+                view.getUserStatusLabel().setText("Выберите пользователя!");
+                return;
+            }
+
+            if (model.deleteUser(selectedUser.getUserId())) {
+                view.getUserStatusLabel().setText("Пользователь успешно удален.");
+                refreshUsers.run();
+            } else {
+                view.getUserStatusLabel().setText("Ошибка удаления аккаунта.");
             }
         });
     }

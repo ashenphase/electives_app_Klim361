@@ -1,12 +1,9 @@
-package view;
-
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import model.Elective;
 
 public class AdminDashboardView {
     private final Stage stage;
@@ -18,21 +15,30 @@ public class AdminDashboardView {
     private ComboBox<String> activityTypeBox;
     private TextField hoursField;
     private Button addActivityButton;
-    private ComboBox<model.TeacherProperty> teacherBox;
+    private ComboBox<TeacherProperty> teacherBox;
 
 
-    protected TableView<model.Teacher> teachersTable;
+    protected TableView<Teacher> teachersTable;
     private TextField tLastNameField, tFirstNameField, tPatronymicField, tPositionField;
     private Button addTeacherBtn, deleteTeacherBtn, assignBtn;
     private ComboBox<String> allElectivesBox;
     private Label teacherStatusLabel;
 
-    // Элементы вкладки Студенты
-    private TableView<model.Student> studentsTable;
+
+    private TableView<Student> studentsTable;
     private TextField sLastNameField, sFirstNameField, sPatronymicField, sPhoneField, sAddressField;
     private Button addStudentBtn, deleteStudentBtn, enrollBtn;
     private ComboBox<String> semCoursesBox;
     private Label studentStatusLabel;
+    private Button unenrollBtn;
+
+
+    private TableView<UserProperty> usersTable;
+    private ComboBox<String> rolesComboBox;
+    private Button changeRoleBtn;
+    private Button deleteUserBtn;
+    private Label userStatusLabel;
+    private ComboBox<TeacherProperty> freeTeachersComboBox;
 
     public AdminDashboardView() {
         this.stage = new Stage();
@@ -54,7 +60,7 @@ public class AdminDashboardView {
         refreshButton = new Button("Обновить список курсов");
         refreshButton.setMaxWidth(Double.MAX_VALUE);
 
-        // блок управления часами (Activities)
+        // блок управления часами
         activityInfoArea = new TextArea();
         activityInfoArea.setPromptText("Выберите курс из таблицы, чтобы увидеть распределение часов...");
         activityInfoArea.setEditable(false);
@@ -95,12 +101,12 @@ public class AdminDashboardView {
 
         // таблица
         teachersTable = new TableView<>();
-        TableColumn<model.Teacher, Integer> tIdCol = new TableColumn<>("ID");
+        TableColumn<Teacher, Integer> tIdCol = new TableColumn<>("ID");
         tIdCol.setCellValueFactory(cellData -> cellData.getValue().teacherIdProperty().asObject());
-        TableColumn<model.Teacher, String> tNameCol = new TableColumn<>("ФИО Преподавателя");
+        TableColumn<Teacher, String> tNameCol = new TableColumn<>("ФИО Преподавателя");
         tNameCol.setCellValueFactory(cellData -> cellData.getValue().fullNameProperty());
         tNameCol.setPrefWidth(200);
-        TableColumn<model.Teacher, String> tPosCol = new TableColumn<>("Должность");
+        TableColumn<Teacher, String> tPosCol = new TableColumn<>("Должность");
         tPosCol.setCellValueFactory(cellData -> cellData.getValue().positionProperty());
         tPosCol.setPrefWidth(120);
         teachersTable.getColumns().addAll(tIdCol, tNameCol, tPosCol);
@@ -113,7 +119,7 @@ public class AdminDashboardView {
         tLastNameField = new TextField(); tLastNameField.setPromptText("Фамилия");
         tFirstNameField = new TextField(); tFirstNameField.setPromptText("Имя");
         tPatronymicField = new TextField(); tPatronymicField.setPromptText("Отчество (если есть)");
-        tPositionField = new TextField(); tPositionField.setPromptText("Должность (н-р, Доцент)");
+        tPositionField = new TextField(); tPositionField.setPromptText("Должность");
 
         addTeacherBtn = new Button("Добавить преподавателя");
         addTeacherBtn.setMaxWidth(Double.MAX_VALUE);
@@ -146,22 +152,22 @@ public class AdminDashboardView {
 
 
 
-        Tab studentsTab = new Tab("Запись студентов");
+        Tab studentsTab = new Tab("Студенты");
         studentsTab.setClosable(false);
 
         // таблица студентов
         studentsTable = new TableView<>();
-        TableColumn<model.Student, Integer> sIdCol = new TableColumn<>("ID");
+        TableColumn<Student, Integer> sIdCol = new TableColumn<>("ID");
         sIdCol.setCellValueFactory(cellData -> cellData.getValue().studentIdProperty().asObject());
-        TableColumn<model.Student, String> sNameCol = new TableColumn<>("ФИО Студента");
+        TableColumn<Student, String> sNameCol = new TableColumn<>("ФИО Студента");
         sNameCol.setCellValueFactory(cellData -> cellData.getValue().fullNameProperty());
         sNameCol.setPrefWidth(200);
-        TableColumn<model.Student, String> sPhoneCol = new TableColumn<>("Телефон");
+        TableColumn<Student, String> sPhoneCol = new TableColumn<>("Телефон");
         sPhoneCol.setCellValueFactory(cellData -> cellData.getValue().phoneNumberProperty());
         sPhoneCol.setPrefWidth(120);
         studentsTable.getColumns().addAll(sIdCol, sNameCol, sPhoneCol);
 
-        // Форма управления
+        // форма управления
         VBox studentForm = new VBox(10);
         studentForm.setPadding(new Insets(10));
         studentForm.setPrefWidth(300);
@@ -169,7 +175,7 @@ public class AdminDashboardView {
         sLastNameField = new TextField(); sLastNameField.setPromptText("Фамилия");
         sFirstNameField = new TextField(); sFirstNameField.setPromptText("Имя");
         sPatronymicField = new TextField(); sPatronymicField.setPromptText("Отчество");
-        sPhoneField = new TextField(); sPhoneField.setPromptText("Телефон (уникальный)");
+        sPhoneField = new TextField(); sPhoneField.setPromptText("Телефон");
         sAddressField = new TextField(); sAddressField.setPromptText("Адрес проживания");
 
         addStudentBtn = new Button("Добавить студента");
@@ -184,6 +190,10 @@ public class AdminDashboardView {
         enrollBtn = new Button("Записать на курс");
         enrollBtn.setMaxWidth(Double.MAX_VALUE);
 
+        unenrollBtn = new Button("Отписать от курса");
+        unenrollBtn.setMaxWidth(Double.MAX_VALUE);
+        unenrollBtn.setStyle("-fx-text-fill: darkred;");
+
         studentStatusLabel = new Label();
         studentStatusLabel.setWrapText(true);
 
@@ -193,6 +203,7 @@ public class AdminDashboardView {
                 new Label("Управление записью"),
                 deleteStudentBtn, new Separator(),
                 new Label("Записать на факультатив:"), semCoursesBox, enrollBtn,
+                unenrollBtn,
                 studentStatusLabel
         );
 
@@ -201,7 +212,61 @@ public class AdminDashboardView {
         studentsLayout.getChildren().addAll(studentsTable, studentForm);
         studentsTab.setContent(studentsLayout);
 
-        tabPane.getTabs().addAll(coursesTab, teachersTab, studentsTab);
+        Tab rolesTab = new Tab("Управление ролями");
+        rolesTab.setClosable(false);
+
+        usersTable = new TableView<>();
+        TableColumn<UserProperty, Integer> uIdCol = new TableColumn<>("ID");
+        uIdCol.setCellValueFactory(cellData -> cellData.getValue().userIdProperty().asObject());
+        TableColumn<UserProperty, String> uLoginCol = new TableColumn<>("Логин / Аккаунт");
+        uLoginCol.setCellValueFactory(cellData -> cellData.getValue().loginProperty());
+        uLoginCol.setPrefWidth(180);
+        TableColumn<UserProperty, String> uRoleCol = new TableColumn<>("Текущая роль");
+        uRoleCol.setCellValueFactory(cellData -> cellData.getValue().roleProperty());
+        uRoleCol.setPrefWidth(120);
+        usersTable.getColumns().addAll(uIdCol, uLoginCol, uRoleCol);
+
+        VBox rolesForm = new VBox(10);
+        rolesForm.setPadding(new Insets(10));
+        rolesForm.setPrefWidth(280);
+
+        rolesComboBox = new ComboBox<>();
+        rolesComboBox.getItems().addAll("admin", "teacher", "guest");
+        rolesComboBox.setPromptText("Выберите роль");
+        rolesComboBox.setMaxWidth(Double.MAX_VALUE);
+
+        freeTeachersComboBox = new ComboBox<>();
+        freeTeachersComboBox.setPromptText("Привязать к преподавателю");
+        freeTeachersComboBox.setMaxWidth(Double.MAX_VALUE);
+        freeTeachersComboBox.setVisible(false);
+
+        changeRoleBtn = new Button("Сохранить изменения");
+        changeRoleBtn.setMaxWidth(Double.MAX_VALUE);
+
+        deleteUserBtn = new Button("Удалить аккаунт");
+        deleteUserBtn.setMaxWidth(Double.MAX_VALUE);
+        deleteUserBtn.setStyle("-fx-text-fill: red;");
+
+        userStatusLabel = new Label();
+        userStatusLabel.setWrapText(true);
+
+        rolesForm.getChildren().addAll(
+                new Label("Изменение прав"),
+                rolesComboBox,
+                freeTeachersComboBox,
+                changeRoleBtn,
+                new Separator(),
+
+                deleteUserBtn,
+                userStatusLabel
+        );
+
+        HBox rolesLayout = new HBox(15);
+        rolesLayout.setPadding(new Insets(15));
+        rolesLayout.getChildren().addAll(usersTable, rolesForm);
+        rolesTab.setContent(rolesLayout);
+
+        tabPane.getTabs().addAll(coursesTab, teachersTab, studentsTab, rolesTab);
 
         Scene scene = new Scene(tabPane, 700, 600);
         stage.setScene(scene);
@@ -236,9 +301,9 @@ public class AdminDashboardView {
     public ComboBox<String> getActivityTypeBox() { return activityTypeBox; }
     public TextField getHoursField() { return hoursField; }
     public Button getAddActivityButton() { return addActivityButton; }
-    public ComboBox<model.TeacherProperty> getTeacherBox() { return teacherBox; }
+    public ComboBox<TeacherProperty> getTeacherBox() { return teacherBox; }
 
-    public TableView<model.Teacher> getTeachersTable() { return teachersTable; }
+    public TableView<Teacher> getTeachersTable() { return teachersTable; }
     public TextField getTLastNameField() { return tLastNameField; }
     public TextField getTFirstNameField() { return tFirstNameField; }
     public TextField getTPatronymicField() { return tPatronymicField; }
@@ -249,7 +314,7 @@ public class AdminDashboardView {
     public Button getAssignBtn() { return assignBtn; }
     public Label getTeacherStatusLabel() { return teacherStatusLabel; }
 
-    public TableView<model.Student> getStudentsTable() { return studentsTable; }
+    public TableView<Student> getStudentsTable() { return studentsTable; }
     public TextField getSLastNameField() { return sLastNameField; }
     public TextField getSFirstNameField() { return sFirstNameField; }
     public TextField getSPatronymicField() { return sPatronymicField; }
@@ -260,4 +325,12 @@ public class AdminDashboardView {
     public ComboBox<String> getSemCoursesBox() { return semCoursesBox; }
     public Button getEnrollBtn() { return enrollBtn; }
     public Label getStudentStatusLabel() { return studentStatusLabel; }
+    public Button getUnenrollBtn() { return unenrollBtn; }
+
+    public TableView<UserProperty> getUsersTable() { return usersTable; }
+    public ComboBox<String> getRolesComboBox() { return rolesComboBox; }
+    public ComboBox<TeacherProperty> getFreeTeachersComboBox() { return freeTeachersComboBox; }
+    public Button getChangeRoleBtn() { return changeRoleBtn; }
+    public Button getDeleteUserBtn() { return deleteUserBtn; }
+    public Label getUserStatusLabel() { return userStatusLabel; }
 }

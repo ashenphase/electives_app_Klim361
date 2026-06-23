@@ -1,13 +1,12 @@
-package model;
+import java.util.ArrayList;
+import java.util.List;
 
 public class User {
     private int userId;
     private String login;
     private String email;
     private String passwordHash;
-    private String role;
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    private List<String> roles = new ArrayList<>();
 
     public User(int userId, String login, String email, String passwordHash) {
         this.userId = userId;
@@ -16,7 +15,20 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    // геттеры и сеттеры
+    public List<String> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(List<String> roles) {
+        this.roles = roles;
+    }
+
+    public void addRole(String role) {
+        if (role != null && !this.roles.contains(role)) {
+            this.roles.add(role);
+        }
+    }
+
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
 

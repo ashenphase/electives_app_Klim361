@@ -1,10 +1,10 @@
-package model;
-
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Date;
+import java.sql.Connection;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,7 +88,6 @@ public class Electives {
     // добавить или обновить часы для вида занятия
     public boolean saveActivityHours(int semesterCourseId, String typeTitle, int hours, Integer teacherId) {
         String typeQuery = "SELECT activity_type_id FROM activity_types WHERE title = ?";
-        // Добавили teacher_id в INSERT и в ON DUPLICATE KEY UPDATE
         String saveQuery = "INSERT INTO activities (hours, semester_course_id, activity_type_id, teacher_id) VALUES (?, ?, ?, ?) " +
                 "ON DUPLICATE KEY UPDATE hours = ?, teacher_id = ?";
 
@@ -202,7 +201,7 @@ public class Electives {
         }
     }
 
-    // получение списка ВСЕХ чистых факультативов (из таблицы electives) для выпадающего списка
+    // получение списка факультативов (из таблицы electives)
     public List<String> getAllElectiveTitles() {
         List<String> titles = new ArrayList<>();
         String query = "SELECT title FROM electives";
@@ -295,16 +294,23 @@ public class Electives {
         }
     }
 
-    // получение списка запусков курсов для выпадающего списка записи (ID + Название)
-    public List<String> getSemesterCoursesFormList() {
-        List<String> list = new ArrayList<>();
-        String query = "SELECT sc.semester_course_id, e.title, sc.academic_year " +
+    public ObservableList<String> getSemesterCoursesFormList() {
+        ObservableList<String> list = FXCollections.observableArrayList();
+        // ИСПРАВЛЕНО: Достаем semester_number из базы данных
+        String query = "SELECT sc.semester_course_id, e.title, sc.academic_year, sc.semester_number " +
                 "FROM semester_courses sc " +
-                "INNER JOIN electives e ON sc.elective_id = e.elective_id";
+                "JOIN electives e ON sc.elective_id = e.elective_id";
         try (PreparedStatement pstmt = connection.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
+
             while (rs.next()) {
-                list.add(rs.getInt("semester_course_id") + " - " + rs.getString("title") + " (" + rs.getString("academic_year") + ")");
+                int id = rs.getInt("semester_course_id");
+                String title = rs.getString("title");
+                String year = rs.getString("academic_year");
+                int sem = rs.getInt("semester_number");
+
+                // ИСПРАВЛЕНО: Красиво склеиваем строку, добавляя семестр
+                list.add(id + " - " + title + " (Семестр " + sem + ") (" + year + ")");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -312,7 +318,6 @@ public class Electives {
         return list;
     }
 
-    // запись студента на семестровый курс (students_semester_courses)
     public boolean enrollStudentToCourse(int studentId, int semesterCourseId) {
         String query = "INSERT INTO students_semester_courses (student_id, semester_course_id, grade, exam_date) VALUES (?, ?, NULL, NULL)";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -320,6 +325,270 @@ public class Electives {
             pstmt.setInt(2, semesterCourseId);
             pstmt.executeUpdate();
             return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public ObservableList<UserProperty> loadUsersFromDb() {
+        ObservableList<UserProperty> users = FXCollections.observableArrayList();
+
+        String query = "SELECT u.user_id, u.login, GROUP_CONCAT(r.role_name SEPARATOR ', ') AS roles_list " +
+                "FROM users u " +
+                "LEFT JOIN users_roles ur ON u.user_id = ur.user_id " +
+                "LEFT JOIN roles r ON ur.role_id = r.role_id " +
+                "GROUP BY u.user_id, u.login";
+
+        try (PreparedStatement pstmt = connection.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String roles = rs.getString("roles_list");
+                if (roles == null || roles.isEmpty()) {
+                    roles = "guest"; // если ролей нет
+                }
+
+                users.add(new UserProperty(
+                        rs.getInt("user_id"),
+                        rs.getString("login"),
+                        roles,
+                        0
+                ));
+            }
+        } catch (Exception e) {
+            System.err.println("ОШИБКА ПРИ СБОРЕ МНОЖЕСТВЕННЫХ РОЛЕЙ");
+            e.printStackTrace();
+        }
+        return users;
+    }
+
+    public List<TeacherProperty> getFreeTeachers() {
+        List<TeacherProperty> list = new ArrayList<>();
+        String query = "SELECT teacher_id, last_name, first_name, patronymic FROM teachers WHERE user_id IS NULL";
+        try (PreparedStatement pstmt = connection.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                list.add(new TeacherProperty(
+                        rs.getInt("teacher_id"),
+                        rs.getString("last_name"),
+                        rs.getString("first_name"),
+                        rs.getString("patronymic")
+                ));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public boolean addRoleToUser(int userId, String roleName, Integer teacherId) {
+        String findRoleId = "SELECT role_id FROM roles WHERE role_name = ?";
+        String insertNewRole = "INSERT IGNORE INTO users_roles (user_id, role_id) VALUES (?, ?)";
+        String updateTeacher = "UPDATE teachers SET user_id = ? WHERE teacher_id = ?";
+
+        try {
+            connection.setAutoCommit(false);
+
+            int roleId = -1;
+            try (PreparedStatement pstmt = connection.prepareStatement(findRoleId)) {
+                pstmt.setString(1, roleName);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next()) roleId = rs.getInt("role_id");
+                }
+            }
+
+            if (roleId != -1) {
+                try (PreparedStatement pstmt = connection.prepareStatement(insertNewRole)) {
+                    pstmt.setInt(1, userId);
+                    pstmt.setInt(2, roleId);
+                    pstmt.executeUpdate();
+                }
+            }
+
+            if (teacherId != null && "teacher".equals(roleName)) {
+                try (PreparedStatement pstmt = connection.prepareStatement(updateTeacher)) {
+                    pstmt.setInt(1, userId);
+                    pstmt.setInt(2, teacherId);
+                    pstmt.executeUpdate();
+                }
+            }
+
+            connection.commit();
+            connection.setAutoCommit(true);
+            return true;
+        } catch (Exception e) {
+            try { connection.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteUser(int userId) {
+        String clearTeacherLink = "UPDATE teachers SET user_id = NULL WHERE user_id = ?";
+        String deleteQuery = "DELETE FROM users WHERE user_id = ?";
+        try {
+            try (PreparedStatement pstmt = connection.prepareStatement(clearTeacherLink)) {
+                pstmt.setInt(1, userId);
+                pstmt.executeUpdate();
+            }
+            try (PreparedStatement pstmt = connection.prepareStatement(deleteQuery)) {
+                pstmt.setInt(1, userId);
+                pstmt.executeUpdate();
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    public int getTeacherIdByUserId(int userId) {
+        String query = "SELECT teacher_id FROM teachers WHERE user_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) return rs.getInt("teacher_id");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1; // если не препод
+    }
+
+    public ObservableList<Elective> loadTeacherCourses(int teacherId) {
+        ObservableList<Elective> list = FXCollections.observableArrayList();
+        String query = "SELECT DISTINCT sc.semester_course_id, e.title, d.title AS dept_title, sc.semester_number, sc.academic_year " +
+                "FROM semester_courses sc " +
+                "JOIN electives e ON sc.elective_id = e.elective_id " +
+                "JOIN departments d ON e.department_id = d.department_id " +
+                "JOIN activities a ON sc.semester_course_id = a.semester_course_id " +
+                "WHERE a.teacher_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, teacherId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new Elective(
+                            rs.getInt("semester_course_id"),
+                            rs.getString("title"),
+                            rs.getString("dept_title"),
+                            rs.getInt("semester_number"),
+                            rs.getString("academic_year")
+                    ));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public String loadTeacherActivities(int courseId, int teacherId) {
+        StringBuilder sb = new StringBuilder();
+        String query = "SELECT at.title, a.hours FROM activities a " +
+                "JOIN activity_types at ON a.activity_type_id = at.activity_type_id " +
+                "WHERE a.semester_course_id = ? AND a.teacher_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, courseId);
+            pstmt.setInt(2, teacherId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    sb.append("• ").append(rs.getString("title"))
+                            .append(": ").append(rs.getInt("hours")).append(" ч.\n");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return sb.length() == 0 ? "На данном курсе у вас нет назначенных часов." : sb.toString();
+    }
+
+    public ObservableList<GradeProperty> loadStudentsForGrading(int courseId) {
+        ObservableList<GradeProperty> list = FXCollections.observableArrayList();
+        String query = "SELECT s.student_id, CONCAT(s.last_name, ' ', s.first_name, ' ', IFNULL(s.patronymic, '')) AS fio, " +
+                "ssc.grade, ssc.exam_date " +
+                "FROM students_semester_courses ssc " +
+                "JOIN students s ON ssc.student_id = s.student_id " +
+                "WHERE ssc.semester_course_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, courseId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Date d = rs.getDate("exam_date");
+                    list.add(new GradeProperty(
+                            rs.getInt("student_id"),
+                            rs.getString("fio"),
+                            rs.getObject("grade") != null ? rs.getInt("grade") : null,
+                            d != null ? d.toString() : null
+                    ));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public boolean saveStudentGrade(int studentId, int courseId, int grade, String dateStr) {
+        String updateGrade = "UPDATE students_semester_courses SET grade = ?, exam_date = ? WHERE student_id = ? AND semester_course_id = ?";
+
+        String syncFinalGrade =
+                "INSERT INTO electives_students (elective_id, student_id, final_grade) " +
+                        "SELECT sc.elective_id, ?, ? FROM semester_courses sc WHERE sc.semester_course_id = ? " +
+                        "ON DUPLICATE KEY UPDATE final_grade = VALUES(final_grade)";
+
+        try {
+            connection.setAutoCommit(false);
+
+            try (PreparedStatement pstmt = connection.prepareStatement(updateGrade)) {
+                pstmt.setInt(1, grade);
+                pstmt.setDate(2, dateStr != null ? Date.valueOf(dateStr) : null);
+                pstmt.setInt(3, studentId);
+                pstmt.setInt(4, courseId);
+                pstmt.executeUpdate();
+            }
+
+            String findBestGrade =
+                    "SELECT ssc.grade FROM students_semester_courses ssc " +
+                            "JOIN semester_courses sc ON ssc.semester_course_id = sc.semester_course_id " +
+                            "WHERE ssc.student_id = ? AND sc.elective_id = (SELECT elective_id FROM semester_courses WHERE semester_course_id = ?) " +
+                            "ORDER BY sc.semester_number DESC";
+
+            int finalGradeValue = grade; // По умолчанию ставим текущую
+            try (PreparedStatement pstmt = connection.prepareStatement(findBestGrade)) {
+                pstmt.setInt(1, studentId);
+                pstmt.setInt(2, courseId);
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next() && rs.getObject("grade") != null) {
+                        finalGradeValue = rs.getInt("grade");
+                    }
+                }
+            }
+
+            try (PreparedStatement pstmt = connection.prepareStatement(syncFinalGrade)) {
+                pstmt.setInt(1, studentId);
+                pstmt.setInt(2, finalGradeValue);
+                pstmt.setInt(3, courseId);
+                pstmt.executeUpdate();
+            }
+
+            connection.commit();
+            connection.setAutoCommit(true);
+            return true;
+        } catch (Exception e) {
+            try { connection.rollback(); } catch (Exception ex) {}
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean unenrollStudentFromCourse(int studentId, int semesterCourseId) {
+        String query = "DELETE FROM students_semester_courses WHERE student_id = ? AND semester_course_id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, studentId);
+            pstmt.setInt(2, semesterCourseId);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0; // Если строка удалена — всё прошло успешно
         } catch (Exception e) {
             e.printStackTrace();
             return false;

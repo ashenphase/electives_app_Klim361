@@ -1,12 +1,8 @@
-package model;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Observable;
 
 public class Users extends Observable {
@@ -39,30 +35,43 @@ public class Users extends Observable {
                 "LEFT JOIN roles r ON ur.role_id = r.role_id " +
                 "WHERE u.login = ?";
 
+        User user = null;
+
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, login);
 
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    String inputHash = hashPassword(password);
+                String inputHash = hashPassword(password);
+
+                while (rs.next()) {
                     String dbHash = rs.getString("password_hash");
 
                     if (inputHash.equalsIgnoreCase(dbHash) || password.equals(dbHash)) {
-                        User user = new User(
-                                rs.getInt("user_id"),
-                                rs.getString("login"),
-                                rs.getString("e_mail"),
-                                dbHash
-                        );
-                        user.setRole(rs.getString("role_name") != null ? rs.getString("role_name") : "Student");
-                        return user;
+                        if (user == null) {
+                            user = new User(
+                                    rs.getInt("user_id"),
+                                    rs.getString("login"),
+                                    rs.getString("e_mail"),
+                                    dbHash
+                            );
+                        }
+
+                        String roleName = rs.getString("role_name");
+                        if (roleName != null) {
+                            user.addRole(roleName);
+                        }
                     }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+
+        if (user != null && user.getRoles().isEmpty()) {
+            user.addRole("guest");
+        }
+
+        return user;
     }
 
     public boolean registerUser(String login, String email, String password) {
@@ -96,7 +105,7 @@ public class Users extends Observable {
 
             connection.commit();
             connection.setAutoCommit(true);
-            System.out.println("[Model] Пользователь " + login + " успешно зарегистрирован!");
+            System.out.println("Пользователь " + login + " успешно зарегистрирован!");
             return true;
 
         } catch (Exception e) {

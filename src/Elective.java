@@ -1,5 +1,3 @@
-package model;
-
 import javafx.beans.property.*;
 
 public class Elective {
@@ -15,6 +13,11 @@ public class Elective {
         this.departmentTitle = new SimpleStringProperty(departmentTitle);
         this.semesterNumber = new SimpleIntegerProperty(semesterNumber);
         this.academicYear = new SimpleStringProperty(academicYear);
+    }
+
+    @Override
+    public String toString() {
+        return title != null ? title.get() : "Без названия";
     }
 
     public IntegerProperty semesterCourseIdProperty() { return semesterCourseId; }
