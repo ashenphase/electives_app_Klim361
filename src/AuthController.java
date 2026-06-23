@@ -32,7 +32,6 @@ public class AuthController {
                 }
             }
 
-            // guest удалится, если есть другие роли
             if (userRoles.size() > 1) {
                 userRoles.remove("guest");
             }

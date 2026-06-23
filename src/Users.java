@@ -3,9 +3,9 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.Observable;
+import java.util.HexFormat;
 
-public class Users extends Observable {
+public class Users {
     private final Connection connection;
 
     public Users() {
@@ -16,13 +16,7 @@ public class Users extends Observable {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
+            return HexFormat.of().formatHex(hash);
         } catch (Exception e) {
             throw new RuntimeException("Ошибка хэширования", e);
         }

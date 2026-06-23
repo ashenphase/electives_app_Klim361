@@ -10,19 +10,7 @@ public class DBConnection {
     private static final String USER = "root";
     private static final String PASSWORD = "";
 
-    private DBConnection() {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-
-            this.connection = DriverManager.getConnection(URL, USER, PASSWORD);
-            System.out.println("Успешное подключение к БД!");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (SQLException e) {
-            System.err.println("Ошибка подключения к базе данных!");
-            e.printStackTrace();
-        }
-    }
+    private DBConnection() {}
 
     public static synchronized DBConnection getInstance() {
         if (instance == null) {
@@ -35,21 +23,22 @@ public class DBConnection {
         try {
             if (connection == null || connection.isClosed()) {
                 connection = DriverManager.getConnection(URL, USER, PASSWORD);
+                System.out.println("Успешное подключение к БД!");
             }
         } catch (SQLException e) {
+            System.err.println("Ошибка подключения к базе данных!");
             e.printStackTrace();
         }
         return connection;
     }
 
-    // закрытие соединения
     public void closeConnection() {
-        if (connection != null) {
-            try {
+        try {
+            if (connection != null && !connection.isClosed()) {
                 connection.close();
-            } catch (SQLException e) {
-                System.err.println("Ошибка при закрытии соединения: " + e.getMessage());
             }
+        } catch (SQLException e) {
+            System.err.println("Ошибка при закрытии соединения: " + e.getMessage());
         }
     }
 }
