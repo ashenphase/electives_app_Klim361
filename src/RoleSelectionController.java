@@ -33,7 +33,6 @@ public class RoleSelectionController {
         } else if ("teacher".equals(role)) {
             Electives electivesModel = new Electives();
             TeacherDashboardView teacherView = new TeacherDashboardView();
-
             new TeacherDashboardController(electivesModel, teacherView, this.userId);
             teacherView.show();
 
