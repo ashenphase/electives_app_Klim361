@@ -31,7 +31,7 @@ public class RoleSelectionView {
         String russianTitle = roleName;
         if ("admin".equals(roleName)) russianTitle = "Администратор";
         if ("teacher".equals(roleName)) russianTitle = "Преподаватель";
-        if ("guest".equals(roleName)) russianTitle = "Слушатель (Гость)";
+        if ("guest".equals(roleName)) russianTitle = "Гость";
 
         Button btn = new Button(russianTitle);
         btn.setPrefWidth(200);

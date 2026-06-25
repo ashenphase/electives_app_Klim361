@@ -224,7 +224,6 @@ public class AdminDashboardController {
             }
 
             try {
-                // Вытаскиваем ID курса из строки ComboBox (например, "2 - Физика")
                 int semesterCourseId = Integer.parseInt(selectedCourseRow.split(" - ")[0]);
 
                 if (model.unenrollStudentFromCourse(selectedStudent.getStudentId(), semesterCourseId)) {
