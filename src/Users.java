@@ -40,7 +40,7 @@ public class Users {
                 while (rs.next()) {
                     String dbHash = rs.getString("password_hash");
 
-                    if (inputHash.equalsIgnoreCase(dbHash) || password.equals(dbHash)) {
+                    if (inputHash.equalsIgnoreCase(dbHash)) {
                         if (user == null) {
                             user = new User(
                                     rs.getInt("user_id"),
