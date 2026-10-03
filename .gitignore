@@ -26,5 +26,6 @@ bin/
 ### VS Code ###
 .vscode/
 .flp
+.mp3
 ### Mac OS ###
 .DS_Store
